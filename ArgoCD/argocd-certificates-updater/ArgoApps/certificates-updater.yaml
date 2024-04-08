@@ -1,0 +1,34 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  annotations:
+    argocd-image-updater.argoproj.io/write-back-method: git
+    argocd-image-updater.argoproj.io/git-branch: master
+    argocd-image-updater.argoproj.io/image-list: cert-updater=nexus.infra.loc:5000/automation/test/cert-updater
+    argocd-image-updater.argoproj.io/backend.allow-tags: 'regexp:^1.[0-9]+.[0-9]+-develop.[0-9]+$'
+    argocd-image-updater.argoproj.io/backend.update-strategy: latest
+  name: certificates-updater-master
+  namespace: automation-infra-services
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: certificates-updater
+
+  source:
+    repoURL: https://git.digital.rt.ru/bpa/automation-services-k8s/ArgoCD/argocd-certificates-updater.git
+    targetRevision: master
+    path: ./charts/certificates-updater
+    helm:
+      valueFiles:
+
+
+   
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: test
+
+  syncPolicy: 
+    automated:
+      prune: true
+      selfHeal: true

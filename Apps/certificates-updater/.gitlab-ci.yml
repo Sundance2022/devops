@@ -1,0 +1,48 @@
+---
+.base_build:
+  stage: build
+  image:
+    name: gcr.io/kaniko-project/executor:v1.18.0-debug
+    entrypoint: [""]
+  before_script:
+    - |
+      if [ -z "$NEXT_RELEASE" ]; then
+        echo "Нового релиза нет. Сборка образа не требуется."
+        exit 0
+      fi
+    - echo "{\"auths\":{\"${CONTAINER_REGISTRY}\":{\"auth\":\"$(printf "%s:%s" "${CONTAINER_REGISTRY_USERNAME}" "${CONTAINER_REGISTRY_PASSWORD}" | base64 | tr -d '\n')\"}}}" > /kaniko/.docker/config.json
+
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+    - if: '$CI_COMMIT_BRANCH == "staging"'
+  tags:
+    - automation
+    - k8s
+    - stage
+
+build:backend_api:
+  extends: .base_build
+  stage: build_app
+  script:
+    - /kaniko/executor
+      --context "${CI_PROJECT_DIR}"
+      --dockerfile "${CI_PROJECT_DIR}/Dockerfile"
+      --destination "${CONTAINER_REGISTRY}/automation/test/$IMAGE_NAME:${NEXT_RELEASE}"
+      --insecure-registry ${CONTAINER_REGISTRY}
+
+variables:
+  GIT_DEPTH: 1
+  NODE_TLS_REJECT_UNAUTHORIZED: 0
+  IMAGE_NAME: cert-updater
+
+#image: artemshestakov/ansible:5.6.0
+
+stages:
+  - fetch-version
+  - build_app
+  - release
+
+include:
+  - project: 'bpa/gitlab-ci-for-bpa'
+    file: 'release.yml'

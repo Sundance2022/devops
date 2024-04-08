@@ -1,0 +1,4 @@
+namespaces: "test test2 test3"
+
+image:
+  tag: 1.0.0-develop.1

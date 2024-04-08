@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cert-updater
+  labels:
+    app: cert-updater
+spec:
+  selector:
+    matchLabels:
+      app: cert-updater
+  template:
+    metadata:
+      labels:
+        app: cert-updater
+    spec:
+      containers:
+      - image: nexus.infra.loc:5000/automation/test/cert-updater:{{ .Values.image.tag }}
+        name: cert-updater
+        env:
+          - name: VAULT_ADDR
+            value: "http://vault-server.automation-infra-services.svc:8200/"
+          - name: VAULT_CERT_PATH
+            value: "certs/rt-dc-ru"
+          - name: VAULT_CERT_FIELD_KEY
+            value: "tlskey"
+          - name: VAULT_CERT_FIELD_CRT
+            value: "tlscrt"
+          - name: CERT_NAME
+            value: "vaultsecret-cert-rt-dc-ru"
+          - name: ALLOWED_NAMESPACES
+            value: "{{ .Values.namespaces }}"
+          - name: TIMEOUT
+            value: "5"
+        command: ["/bin/sh","-c"]
+        args: ["/usr/local/bin/cert-updater"]

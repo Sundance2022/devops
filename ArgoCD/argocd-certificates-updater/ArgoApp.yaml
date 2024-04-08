@@ -1,0 +1,18 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: certificates-updater
+  namespace: automation-infra-services
+spec:
+  project: certificates-updater
+  source:
+    repoURL: https://git.digital.rt.ru/bpa/automation-services-k8s/ArgoCD/argocd-certificates-updater.git
+    targetRevision: master
+    path: ./ArgoApps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: test
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

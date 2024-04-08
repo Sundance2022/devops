@@ -1,0 +1,21 @@
+plugins:
+  - ["@semantic-release/commit-analyzer", {
+      "preset": "angular",
+      "releaseRules": [
+        { "type": "docs", "scope": "README", "release": "patch" },
+        {"type": "fix", "release": "patch"},
+        {"type": "feat", "release": "minor"},
+      ]
+    }]
+  - "@semantic-release/release-notes-generator"
+  - "@semantic-release/gitlab"
+  - ["@semantic-release/exec", {
+      "analyzeCommitsCmd": "echo LAST_RELEASE=${lastRelease.version} >> release.env",
+      "verifyReleaseCmd": "echo NEXT_RELEASE=${nextRelease.version} >> release.env",
+    }]
+branches:
+  - "master"
+  - name: "develop"
+    prerelease: true
+  - name: "staging"
+    prerelease: true

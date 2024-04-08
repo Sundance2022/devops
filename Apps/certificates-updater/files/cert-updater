@@ -1,0 +1,54 @@
+#/bin/bash
+#
+test_cert_in_ns () {
+  kubectl get secrets -n $i $CERT_NAME &> /dev/null
+}
+##
+create_cert_in_ns () {
+kubectl apply -f - <<EOF
+apiVersion: v1
+data:
+  tls.crt: $ACTUAL_TLS_CRT
+  tls.key: $ACTUAL_TLS_KEY
+kind: Secret
+metadata:
+  name: $CERT_NAME
+  namespace: $i
+type: kubernetes.io/tls
+EOF
+}
+
+while true;
+  do
+
+
+
+    for i in $ALLOWED_NAMESPACES
+      do
+        LOG=$(echo "[$(date)]:")
+        ACTUAL_TLS_KEY=$(curl -s -H "X-Vault-Token: $(curl -Ss "$VAULT_ADDR"v1/auth/kubernetes/login --data "{\"jwt\": \"$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)\", \"role\": \"cert-updater\"}" | sed 's|.*client_token":"||' | awk -F '"' '{print $1}')" -X GET "$VAULT_ADDR"v1/certs/data/rt-dc-ru | sed 's|.*'$VAULT_CERT_FIELD_KEY'":"||' | awk -F '"}' '{print $1}' | awk '{gsub(/\\n/,"\n")}1' | base64 | tr -d "\n")
+        ACTUAL_TLS_CRT=$(curl -s -H "X-Vault-Token: $(curl -Ss "$VAULT_ADDR"v1/auth/kubernetes/login --data "{\"jwt\": \"$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)\", \"role\": \"cert-updater\"}" | sed 's|.*client_token":"||' | awk -F '"' '{print $1}')" -X GET "$VAULT_ADDR"v1/certs/data/rt-dc-ru | sed 's|.*'$VAULT_CERT_FIELD_CRT'":"||' | awk -F '",' '{print $1}' | awk '{gsub(/\\n/,"\n")}1' | base64 | tr -d "\n")
+        test_cert_in_ns
+        if [ $? -eq 1 ]
+          then
+            echo "$LOG namespace=\"$i\" status=\"certificate not found\""
+            create_cert_in_ns
+	          echo "$LOG namespace=\"$i\" status=\"creating certificate\""
+          else
+            echo "$LOG namespace=\"$i\" status=\"certificate found\""
+        fi
+
+        CURRENT_TLS_KEY=$(kubectl get secrets -n $i $CERT_NAME --template='{{ index .data "tls.key" }}')
+        CURRENT_TLS_CRT=$(kubectl get secrets -n $i $CERT_NAME --template='{{ index .data "tls.crt" }}')
+
+        if [ "$ACTUAL_TLS_KEY" == "$CURRENT_TLS_KEY" ] && [ "$ACTUAL_TLS_CRT" == "$CURRENT_TLS_CRT" ]
+          then
+            echo "$LOG namespace=\"$i\" status=\"certificate is relevant\""
+          else
+            create_cert_in_ns
+		        echo "$LOG namespace=\"$i\" status=\"certificate update\""
+        fi
+  done
+
+  sleep $TIMEOUT
+done
